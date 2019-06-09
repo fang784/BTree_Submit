@@ -1,1305 +1,1055 @@
-//
-// Created by Ö£ÎÄöÎ on 2019-03-09.
-//
 #include "utility.hpp"
 #include <functional>
 #include <cstddef>
 #include "exception.hpp"
 #include <map>
-namespace sjtu
-{
+#include <cstdio>
+namespace sjtu {
+	const char BPTREE_ADDRESS[128] = "bpt";
 	template <class Key, class Value, class Compare = std::less<Key> >
 	class BTree {
-	public:
-		typedef pair<Key, Value> value_type;
-		static const size_t M = 2000;
-		static const size_t N = 200;
-		static const size_t Mmin = 1000;
-		static const size_t Nmin = 100;
-		size_t wenjianpos = 0;
-		class yezi
-		{
+	private:
+		class kuaixinxi {
 		public:
-			size_t offset;
-			size_t par;
-			size_t pre;
-			size_t next;
-			size_t geshu;
-			value_type a[N + 1];
-			yezi()
-			{
-				offset = 0;
-				par = 0;
-				pre = 0;
-				next = 0;
-				geshu = 0;
-			}
+			bool blockT = false;
+			int bsize = 0;
+			int bpos = 0;
+			int bpar = 0;
+			int bpre = 0;
+			int bnext = 0;
 		};
-		class mid
-		{
-		public:
-			size_t offset;
-			size_t par;
-			size_t geshu;
-			bool bz;
-			size_t erzi[M + 1];
-			Key key[M + 1];
-			mid()
-			{
-				offset = 0;
-				par = 0;
-				geshu = 0;
-				bz = false;
-				size_t i;
-				for (i = 0; i <= M; ++i)
-				{
-					erzi[i] = 0;
-				}
-			}
+
+		struct DataNode {
+			int nodeerzi = 0;
+			Key nodekey;
 		};
-		class xinxi
-		{
+
+		const static int kuaisize = 4096;
+		const static int kuaixinxisize = sizeof(kuaixinxi);
+		const static int keysize = sizeof(Key);
+		const static int valuesize = sizeof(Value);
+		const static int kgeshu = (kuaisize - kuaixinxisize) / sizeof(DataNode) - 1;
+		const static int pgeshu = (kuaisize - kuaixinxisize) / (keysize + valuesize) - 1;
+
+		class wjxinxi {
 		public:
-			size_t head;
-			size_t wei;
-			size_t size;
-			size_t wenjianwei;
-			size_t root;
-			xinxi()
-			{
-				head = 0;
-				wei = 0;
-				size = 0;
-				wenjianwei = 0;
-				root = 0;
-			}
+			int geshu = 1;
+			introotpos = 0;
+			int data_blockHead = 0;
+			int data_block_rear = 0;
+			int bsize = 0;
 		};
-		class name
-		{
+
+		class wjk {
 		public:
-			char* ch;
-			name()
-			{
-				ch = new char[10];
-				ch[0] = 'b';
-				ch[1] = 'b';
-				ch[2] = 'p';
-				ch[3] = 'p';
-				ch[4] = 't';
-				ch[5] = '\0';
-			}
-			~name()
-			{
-				if (ch != NULL) delete ch;
-			}
-			void qiming(char* str)
-			{
-				size_t i = 0;
-				for (; str[i]; ++i)
-				{
-					ch[i] = str[i];
-				}
-				ch[i] = 0;
-			}
-			void qiming(int x)
-			{
-				ch[0] = 'f';
-				ch[1] = '\0';
-			}
+			DataNode val[kgeshu];
 		};
-		FILE* wenjian;
-		bool kai;
-		name filename;
-		xinxi info;
-		bool flag;
-		name prefilename;
-		FILE* prefile;
-		size_t yeoftp;
-		inline void dakai()
-		{
-			flag = true;
-			if (kai == false)
-			{
-				wenjian = fopen(filename.ch, "rb+");
-				if (wenjian == NULL)
-				{
-					flag = false;
-					wenjian = fopen(filename.ch, "w");
-					fclose(wenjian);
-					wenjian = fopen(filename.ch, "rb+");
-				}
-				else
-				{
-					du(&info, wenjianpos, 1, sizeof(xinxi));
-				}
-				kai = true;
-			}
-		}
-		inline void guanbi()
-		{
-			if (kai == 1)
-			{
-				fclose(wenjian);
-				kai = false;
-			}
-		}
-		inline void du(void* dizhi, size_t offset, size_t num, size_t size)
-		{
-			if (fseek(wenjian, offset, SEEK_SET)) throw "tmd da bu kai";
-			fread(dizhi, size, num, wenjian);
-		}
-		inline void xie(void* dizhi, size_t offset, size_t num, size_t size)
-		{
-			if (fseek(wenjian, offset, SEEK_SET)) throw "tmd da bu kai";
-			fwrite(dizhi, size, num, wenjian);
-		}
-		inline void copydufile(void* dizhi, size_t offset, size_t num, size_t size)
-		{
-			if (fseek(prefile, offset, SEEK_SET)) throw "tmd da bu kai";
-			fread(dizhi, num, size, prefile);
-		}
-		inline void copyyezi(size_t offset, size_t preoffset, size_t paroffset)
-		{
-			yezi ye;
-			yezi preye;
-			yezi fromye;
-			copydufile(&fromye, preoffset, 1, sizeof(yezi));
-			ye.offset = offset;
-			ye.par = paroffset;
-			ye.geshu = fromye.geshu;
-			ye.pre = yeoftp;
-			ye.next = 0;
-			if (yeoftp != 0)
-			{
-				du(&preye, yeoftp, 1, sizeof(yezi));
-				preye.next = offset;
-				xie(&preye, yeoftp, 1, sizeof(yezi));
-				info.wei = offset;
-			}
-			else
-			{
-				info.head = offset;
-			}
-			for (size_t i = 0; i < ye.geshu; ++i)
-			{
-				ye.a[i].first = fromye.a[i].first;
-				ye.a[i].second = fromye.a[i].second;
-			}
-			xie(&ye, offset, 1, sizeof(yezi));
-			info.wenjianwei += sizeof(yezi);
-			yeoftp = offset;
-		}
-		inline void copynode(size_t offset, size_t fromoffset, size_t paroffset)
-		{
-			mid node, fromnode;
-			copydufile(&fromnode, fromoffset, 1, sizeof(mid));
-			xie(&node, offset, 1, sizeof(mid));
-			info.weijianwei += sizeof(mid);
-			node.offset = offset;
-			node.par = paroffset;
-			node.geshu = fromnode.geshu;
-			node.bz = fromnode.bz;
-			size_t i;
-			for (i = 0; i < node.geshu; ++i)
-			{
-				node.key[i] = fromnode.key[i];
-				if (node.bz == true)
-				{
-					copyleaf(info.wenjianwei, fromnode.erzi[i], offset);
-				}
-				else
-				{
-					copynode(info.wenjianwei, fromnode.erzi[i], offset);
-				}
-			}
-			xie(&node, offset, 1, sizeof(mid));
-		}
-		inline void copyfile(char* mo, char* qi)
-		{
-			xinxi infor;
-			prefilename.qiming(qi);
-			prefile = fopen(prefilename.ch, "rb+");
-			if (prefile == NULL) throw "mei zhe wan yi";
-			copydufile(&infor, wenjianpos, 1, sizeof(xinxi));
-			yeoftp = 0;
-			info.size = infor.size;
-			info.wenjianwei = info.root = sizeof(xinxi);
-			xie(&info, wenjianpos, 1, sizeof(xinxi));
-			copynode(info.root, infor.foot, 0);
-			xie(&info, wenjianpos, 1, sizeof(xinxi));
-			fclose(prefile);
-		}
-		class const_iterator;
-		class iterator {
+
+		class yedata {
 		public:
-			size_t offset;
-			size_t weizhi;
-			BTree* bpshu;
-			OperationResult modify(const Value& value) {
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				p.a[weizhi].second = value;
-				bpshu->xie(&p, offset, 1, sizeof(yezi));
-				return Success;
+			pair<Key, Value> val[pgeshu];
+		};
+
+		wjxinxi bpshux;
+
+		static FILE* wenjian;
+
+		template <class T>
+		static void memdu(T buff, int buff_size, int pos) {
+			fseek(wenjian, long(buff_size * pos), SEEK_SET);
+			fread(buff, buff_size, 1, wenjian);
+		}
+
+		template <class T>
+		static void memxie(T buff, int buff_size, int pos) {
+			fseek(wenjian, long(buff_size * pos), SEEK_SET);
+			fwrite(buff, buff_size, 1, wenjian);
+			fflush(wenjian);
+		}
+
+		void write_contentOfTree() {
+			fseek(wenjian, 0, SEEK_SET);
+			char buff[kuaisize] = { 0 };
+			memcpy(buff, &bpshux, sizeof(bpshux));
+			memxie(buff, kuaisize, 0);
+		}
+
+		int memory_get() {
+			++bpshux.geshu;
+			write_contentOfTree();
+			char buff[kuaisize] = { 0 };
+			memxie(buff, kuaisize, bpshux.geshu - 1);
+			return bpshux.geshu - 1;
+		}
+
+		int jiannode(int bpar) {
+			auto node_pos = memory_get();
+			kuaixinxi temp;
+			wjk normalData;
+			temp.blockT = false;
+			temp.bpar = bpar;
+			temp.bpos = node_pos;
+			temp.bsize = 0;
+			xienode(&temp, &normalData, node_pos);
+			return node_pos;
+		}
+
+		int jianye(int bpar, int bpre, int bnext) {
+			auto node_pos = memory_get();
+			kuaixinxi temp;
+			yedata leafData;
+			temp.blockT = true;
+			temp.bpar = bpar;
+			temp.bpos = node_pos;
+			temp.bpre = bpre;
+			temp.bnext = bnext;
+			temp.bsize = 0;
+			xienode(&temp, &leafData, node_pos);
+			return node_pos;
+		}
+
+		void charubz(kuaixinxi & parent_info, wjk & parent_data,
+			int origin, int new_pos, const Key & new_index) {
+			++parent_info.bsize;
+			auto p = parent_info.bsize - 2;
+			for (; parent_data.val[p].nodeerzi != origin; --p) {
+				parent_data.val[p + 1] = parent_data.val[p];
 			}
-			iterator() {
-				bpshu = NULL;
-				weizhi = 0;
-				offset = 0;
+			parent_data.val[p + 1].nodekey = parent_data.val[p].nodekey;
+			parent_data.val[p].nodekey = new_index;
+			parent_data.val[p + 1].nodeerzi = new_pos;
+		}
+
+		template <class DATA_TYPE>
+		static void xienode(kuaixinxi * _info, DATA_TYPE * _data, int bpos) {
+			char buff[kuaisize] = { 0 };
+			memcpy(buff, _info, sizeof(kuaixinxi));
+			memcpy(buff + kuaixinxisize, _data, sizeof(DATA_TYPE));
+			memxie(buff, kuaisize, bpos);
+		}
+
+		template <class DATA_TYPE>
+		static void dunode(kuaixinxi * _info, DATA_TYPE * _data, int bpos) {
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, bpos);
+			memcpy(_info, buff, sizeof(kuaixinxi));
+			memcpy(_data, buff + kuaixinxisize, sizeof(DATA_TYPE));
+		}
+
+		Key fenyezi(int pos, kuaixinxi & origin_info, yedata & origin_data) {
+			int parent_pos;
+			kuaixinxi parent_info;
+			wjk parent_data;
+
+			if (pos == bpshux.root_pos) {
+				autorootpos = jiannode(0);
+				bpshux.root_pos =rootpos;
+				write_contentOfTree();
+				dunode(&parent_info, &parent_data,rootpos);
+				origin_info.bpar =rootpos;
+				++parent_info.bsize;
+				parent_data.val[0].nodeerzi = pos;
+				parent_pos =rootpos;
 			}
-			iterator(const iterator& other) {
-				bpshu = other.bpshu;
-				offset = other.offset;
-				weizhi = other.weizhi;
+			else {
+				dunode(&parent_info, &parent_data, origin_info.bpar);
+				parent_pos = parent_info.bpos;
 			}
-			iterator(const_iterator& other)
-			{
-				bpshu = other.bpshu;
-				offset = other.offset;
-				weizhi = other.weizhi;
+			if (jcpar(origin_info)) {
+				parent_pos = origin_info.bpar;
+				dunode(&parent_info, &parent_data, parent_pos);
 			}
-			iterator(BTree* zuzong, size_t zoffset = 0, size_t zweizhi = 0)
-			{
-				bpshu = zuzong;
-				offset = zoffset;
-				weizhi = zweizhi;
+			auto new_pos = jianye(parent_pos, pos, origin_info.bnext);
+
+			auto temp_pos = origin_info.bnext;
+			kuaixinxi temp_info;
+			yedata temp_data;
+			dunode(&temp_info, &temp_data, temp_pos);
+			temp_info.bpre = new_pos;
+			xienode(&temp_info, &temp_data, temp_pos);
+			origin_info.bnext = new_pos;
+
+			kuaixinxi new_info;
+			yedata new_data;
+			dunode(&new_info, &new_data, new_pos);
+
+			int mid_pos = origin_info.bsize >> 1;
+			for (int p = mid_pos, i = 0; p < origin_info.bsize; ++p, ++i) {
+				new_data.val[i].first = origin_data.val[p].first;
+				new_data.val[i].second = origin_data.val[p].second;
+				++new_info.bsize;
 			}
-			Value getValue()
-			{
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				return p.a[weizhi].second;
+			origin_info.bsize = mid_pos;
+			charubz(parent_info, parent_data, pos, new_pos, origin_data.val[mid_pos].first);
+
+			xienode(&origin_info, &origin_data, pos);
+			xienode(&new_info, &new_data, new_pos);
+			xienode(&parent_info, &parent_data, parent_pos);
+
+			return new_data.val[0].first;
+		}
+
+		bool jcpar(kuaixinxi & child_info) {
+			int parent_pos, origin_pos = child_info.bpar;
+			kuaixinxi parent_info, origin_info;
+			wjk parent_data, origin_data;
+			dunode(&origin_info, &origin_data, origin_pos);
+			if (origin_info.bsize < kgeshu)
+				return false;
+
+			if (origin_pos == bpshux.root_pos) {
+				autorootpos = jiannode(0);
+				bpshux.root_pos =rootpos;
+				write_contentOfTree();
+				dunode(&parent_info, &parent_data,rootpos);
+				origin_info.bpar =rootpos;
+				++parent_info.bsize;
+				parent_data.val[0].nodeerzi = origin_pos;
+				parent_pos =rootpos;
 			}
-			// Return a new iterator which points to the n-next elements
-			iterator operator++(int) {
-				iterator tmp = *this;
-				if (tmp == bpshu->end()) {
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return tmp;
+			else {
+				dunode(&parent_info, &parent_data, origin_info.bpar);
+				parent_pos = parent_info.bpos;
+			}
+			if (jcpar(origin_info)) {
+				parent_pos = origin_info.bpar;
+				dunode(&parent_info, &parent_data, parent_pos);
+			}
+			auto new_pos = jiannode(parent_pos);
+			kuaixinxi new_info;
+			wjk new_data;
+			dunode(&new_info, &new_data, new_pos);
+
+			int mid_pos = origin_info.bsize >> 1;
+			for (int p = mid_pos + 1, i = 0; p < origin_info.bsize; ++p, ++i) {
+				if (origin_data.val[p].nodeerzi == child_info.bpos) {
+					child_info.bpar = new_pos;
 				}
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == p.geshu - 1)
-				{
-					if (p.next == 0) ++weizhi;
-					else
-					{
-						offset = p.next;
-						weizhi = 0;
+				std::swap(new_data.val[i], origin_data.val[p]);
+				++new_info.bsize;
+			}
+			origin_info.bsize = mid_pos + 1;
+			charubz(parent_info, parent_data, origin_pos, new_pos, origin_data.val[mid_pos].nodekey);
+
+			xienode(&origin_info, &origin_data, origin_pos);
+			xienode(&new_info, &new_data, new_pos);
+			xienode(&parent_info, &parent_data, parent_pos);
+			return true;
+		}
+
+		void cbz(int l_parent, int l_child, const Key & new_key) {
+			kuaixinxi parent_info;
+			wjk parent_data;
+			dunode(&parent_info, &parent_data, l_parent);
+			if (parent_data.val[parent_info.bsize - 1].nodeerzi == l_child) {
+				cbz(parent_info.bpar, l_parent, new_key);
+				return;
+			}
+			for (int cur_pos = parent_info.bsize - 2;; --cur_pos) {
+				if (parent_data.val[cur_pos].nodeerzi == l_child) {
+					parent_data.val[cur_pos].nodekey = new_key;
+					break;
+				}
+			}
+			xienode(&parent_info, &parent_data, l_parent);
+		}
+
+		void hebing(kuaixinxi & l_info, wjk & l_data, kuaixinxi & r_info, wjk & r_data) {
+			for (int p = l_info.bsize, i = 0; i < r_info.bsize; ++p, ++i) {
+				l_data.val[p] = r_data.val[i];
+			}
+			l_data.val[l_info.bsize - 1].nodekey = adjust(r_info.bpar, r_info.bpos);
+			l_info.bsize += r_info.bsize;
+			xienode(&l_info, &l_data, l_info.bpos);
+		}
+
+		void pinghengn(kuaixinxi & info, wjk & normalData) {
+			if (info.bsize >= kgeshu / 2) {
+				xienode(&info, &normalData, info.bpos);
+				return;
+			}
+			if (info.bpos == bpshux.root_pos && info.bsize <= 1) {
+				bpshux.root_pos = normalData.val[0].nodeerzi;
+				write_contentOfTree();
+				return;
+			}
+			else if (info.bpos == bpshux.root_pos) {
+				xienode(&info, &normalData, info.bpos);
+				return;
+			}
+
+			kuaixinxi parent_info, brother_info;
+			wjk parent_data, brother_data;
+			dunode(&parent_info, &parent_data, info.bpar);
+			int value_pos;
+			for (value_pos = 0; parent_data.val[value_pos].nodeerzi != info.bpos; ++value_pos);
+			if (value_pos > 0) {
+				dunode(&brother_info, &brother_data, parent_data.val[value_pos - 1].nodeerzi);
+				brother_info.bpar = info.bpar;
+				if (brother_info.bsize > kgeshu / 2) {
+					for (int p = info.bsize; p > 0; --p) {
+						normalData.val[p] = normalData.val[p - 1];
 					}
+					normalData.val[0].nodeerzi = brother_data.val[brother_info.bsize - 1].nodeerzi;
+					normalData.val[0].nodekey = parent_data.val[value_pos - 1].nodekey;
+					parent_data.val[value_pos - 1].nodekey = brother_data.val[brother_info.bsize - 2].nodekey;
+					--brother_info.bsize;
+					++info.bsize;
+					xienode(&brother_info, &brother_data, brother_info.bpos);
+					xienode(&info, &normalData, info.bpos);
+					xienode(&parent_info, &parent_data, parent_info.bpos);
+					return;
 				}
-				else weizhi++;
-				return tmp;
+				else {
+					hebing(brother_info, brother_data, info, normalData);
+					return;
+				}
 			}
-			iterator& operator++() {
-				if (*this == bpshu->end())
-				{
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return *this;
-				}
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == p.geshu - 1)
-				{
-					if (p.next == 0)++weizhi;
-					else
-					{
-						offset = p.next;
-						weizhi = 0;
+			if (value_pos < parent_info.bsize - 1) {
+				dunode(&brother_info, &brother_data, parent_data.val[value_pos + 1].nodeerzi);
+				brother_info.bpar = info.bpar;
+				if (brother_info.bsize > kgeshu / 2) {
+					normalData.val[info.bsize].nodeerzi = brother_data.val[0].nodeerzi;
+					normalData.val[info.bsize - 1].nodekey = parent_data.val[value_pos].nodekey;
+					parent_data.val[value_pos].nodekey = brother_data.val[0].nodekey;
+					for (int p = 1; p < brother_info.bsize; ++p) {
+						brother_data.val[p - 1] = brother_data.val[p];
 					}
+					--brother_info.bsize;
+					++info.bsize;
+					xienode(&brother_info, &brother_data, brother_info.bpos);
+					xienode(&info, &normalData, info.bpos);
+					xienode(&parent_info, &parent_data, parent_info.bpos);
+					return;
 				}
-				else weizhi++;
-				return *this;
-			}
-			iterator operator--(int) {
-				iterator tmp = *this;
-				if (tmp == bpshu->begin())
-				{
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return tmp;
+				else {
+					hebing(info, normalData, brother_info, brother_data);
+					return;
 				}
-				yezi p, q;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == 0)
-				{
-					offset = p.pre;
-					bpshu->du(&q, p.pre, 1, sizeof(yezi));
-					weizhi = q.geshu - 1;
+			}
+		}
+
+		Key adjust(int pos, int removed_child) {
+			kuaixinxi info;
+			wjk normalData;
+			dunode(&info, &normalData, pos);
+			int cur_pos;
+			for (cur_pos = 0; normalData.val[cur_pos].nodeerzi != removed_child; ++cur_pos);
+			Key ans = normalData.val[cur_pos - 1].nodekey;
+			normalData.val[cur_pos - 1].nodekey = normalData.val[cur_pos].nodekey;
+			for (; cur_pos < info.bsize - 1; ++cur_pos) {
+				normalData.val[cur_pos] = normalData.val[cur_pos + 1];
+			}
+			--info.bsize;
+			pinghengn(info, normalData);
+			return ans;
+		}
+
+		void hebingye(kuaixinxi & l_info, yedata & l_data, kuaixinxi & r_info, yedata & r_data) {
+			for (int p = l_info.bsize, i = 0; i < r_info.bsize; ++p, ++i) {
+				l_data.val[p].first = r_data.val[i].first;
+				l_data.val[p].second = r_data.val[i].second;
+			}
+			l_info.bsize += r_info.bsize;
+			adjust(r_info.bpar, r_info.bpos);
+			l_info.bnext = r_info.bnext;
+			kuaixinxi temp_info;
+			yedata temp_data;
+			dunode(&temp_info, &temp_data, r_info.bnext);
+			temp_info.bpre = l_info.bpos;
+			xienode(&temp_info, &temp_data, temp_info.bpos);
+			xienode(&l_info, &l_data, l_info.bpos);
+		}
+
+		void balance_leaf(kuaixinxi & leaf_info, yedata & leafData) {
+			if (leaf_info.bsize >= pgeshu / 2) {
+				xienode(&leaf_info, &leafData, leaf_info.bpos);
+				return;
+			}
+			else if (leaf_info.bpos == bpshux.root_pos) {
+				if (leaf_info.bsize == 0) {
+					kuaixinxi temp_info;
+					yedata temp_data;
+					dunode(&temp_info, &temp_data, bpshux.data_blockHead);
+					temp_info.bnext = bpshux.data_block_rear;
+					xienode(&temp_info, &temp_data, bpshux.data_blockHead);
+					dunode(&temp_info, &temp_data, bpshux.data_block_rear);
+					temp_info.bpre = bpshux.data_blockHead;
+					xienode(&temp_info, &temp_data, bpshux.data_block_rear);
+					return;
 				}
-				else --weizhi;
-				return tmp;
+				xienode(&leaf_info, &leafData, leaf_info.bpos);
+				return;
 			}
-			iterator& operator--() {
-				if (*this == bpshu->begin())
-				{
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return *this;
-				}
-				yezi p, q;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == 0)
-				{
-					offset = p.pre;
-					bpshu->du(&q, p.pre, 1, sizeof(yezi));
-					weizhi = q.geshu - 1;
-				}
-				else --weizhi;
-				return *this;
+
+			kuaixinxi brother_info, parent_info;
+			yedata brother_data;
+			wjk parent_data;
+
+			dunode(&parent_info, &parent_data, leaf_info.bpar);
+			int node_pos = 0;
+			for (; node_pos < parent_info.bsize; ++node_pos) {
+				if (parent_data.val[node_pos].nodeerzi == leaf_info.bpos)
+					break;
 			}
-			// Overloaded of operator '==' and '!='
-			// Check whether the iterators are same
-			bool operator==(const iterator& rhs) const {
-				if (offset == rhs.offset && weizhi == rhs.weizhi && bpshu == rhs.bpshu) return true;
-				else return false;
-			}
-			bool operator==(const const_iterator & rhs) const {
-				if (offset == rhs.offset && weizhi == rhs.weizhi && bpshu == rhs.bpshu) return true;
-				else return false;
-			}
-			bool operator!=(const iterator & rhs) const {
-				if (offset != rhs.offset || weizhi != rhs.weizhi || bpshu != rhs.bpshu) return true;
-				else return false;
-			}
-			bool operator!=(const const_iterator & rhs) const {
-				if (offset != rhs.offset || weizhi != rhs.weizhi || bpshu != rhs.bpshu) return true;
-				else return false;
-			}
-			Value quchu()
-			{
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				return p.a[weizhi].second;
-			}
-		};
-		class const_iterator {
-		public:
-			size_t offset;
-			size_t weizhi;
-			const BTree* bpshu;
-			OperationResult modify(const Value& value) {
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				p.a[weizhi].second = value;
-				bpshu->xie(&p, offset, 1, sizeof(yezi));
-				return Success;
-			}
-			const_iterator() {
-				bpshu = NULL;
-				weizhi = 0;
-				offset = 0;
-			}
-			const_iterator(const iterator& other) {
-				bpshu = other.bpshu;
-				offset = other.offset;
-				weizhi = other.weizhi;
-			}
-			const_iterator(const const_iterator& other)
-			{
-				bpshu = other.bpshu;
-				offset = other.offset;
-				weizhi = other.weizhi;
-			}
-			const_iterator(BTree* zuzong, size_t zoffset = 0, size_t zweizhi = 0)
-			{
-				bpshu = zuzong;
-				offset = zoffset;
-				weizhi = zweizhi;
-			}
-			// Return a new iterator which points to the n-next elements
-			const_iterator operator++(int) {
-				const_iterator tmp = *this;
-				if (tmp == bpshu->cend()) {
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return tmp;
-				}
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == p.geshu - 1)
-				{
-					if (p.next == 0) ++weizhi;
-					else
-					{
-						offset = p.next;
-						weizhi = 0;
+
+			if (node_pos > 0) {
+				dunode(&brother_info, &brother_data, leaf_info.bpre);
+				brother_info.bpar = leaf_info.bpar;
+				if (brother_info.bsize > pgeshu / 2) {
+					for (int p = leaf_info.bsize; p > 0; --p) {
+						leafData.val[p].first = leafData.val[p - 1].first;
+						leafData.val[p].second = leafData.val[p - 1].second;
 					}
+					leafData.val[0].first = brother_data.val[brother_info.bsize - 1].first;
+					leafData.val[0].second = brother_data.val[brother_info.bsize - 1].second;
+					--brother_info.bsize;
+					++leaf_info.bsize;
+					cbz(brother_info.bpar, brother_info.bpos, leafData.val[0].first);
+					xienode(&brother_info, &brother_data, brother_info.bpos);
+					xienode(&leaf_info, &leafData, leaf_info.bpos);
+					return;
 				}
-				else weizhi++;
-				return tmp;
-			}
-			const_iterator& operator++() {
-				if (*this == bpshu->cend())
-				{
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return *this;
-				}
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == p.geshu - 1)
-				{
-					if (p.next == 0)++weizhi;
-					else
-					{
-						offset = p.next;
-						weizhi = 0;
-					}
-				}
-				else weizhi++;
-				return *this;
-			}
-			const_iterator operator--(int) {
-				const_iterator tmp = *this;
-				if (tmp == bpshu->cbegin())
-				{
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return tmp;
-				}
-				yezi p, q;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == 0)
-				{
-					offset = p.pre;
-					bpshu->du(&q, p.pre, 1, sizeof(yezi));
-					weizhi = q.geshu - 1;
-				}
-				else --weizhi;
-				return tmp;
-			}
-			Value getValue()
-			{
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				return p.a[weizhi].second;
-			}
-			const_iterator& operator--() {
-				if (*this == bpshu->cbegin())
-				{
-					bpshu = NULL;
-					weizhi = 0;
-					offset = 0;
-					return *this;
-				}
-				yezi p, q;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				if (weizhi == 0)
-				{
-					offset = p.pre;
-					bpshu->du(&q, p.pre, 1, sizeof(yezi));
-					weizhi = q.geshu - 1;
-				}
-				else --weizhi;
-				return *this;
-			}
-			// Overloaded of operator '==' and '!='
-			// Check whether the iterators are same
-			bool operator==(const iterator& rhs) const {
-				if (offset == rhs.offset && weizhi == rhs.weizhi && bpshu == rhs.bpshu) return true;
-				else return false;
-			}
-			bool operator==(const const_iterator & rhs) const {
-				if (offset == rhs.offset && weizhi == rhs.weizhi && bpshu == rhs.bpshu) return true;
-				else return false;
-			}
-			bool operator!=(const iterator & rhs) const {
-				if (offset != rhs.offset || weizhi != rhs.weizhi || bpshu != rhs.bpshu) return true;
-				else return false;
-			}
-			bool operator!=(const const_iterator & rhs) const {
-				if (offset != rhs.offset || weizhi != rhs.weizhi || bpshu != rhs.bpshu) return true;
-				else return false;
-			}
-			Value quchu()
-			{
-				yezi p;
-				bpshu->du(&p, offset, 1, sizeof(yezi));
-				return p.a[weizhi].second;
-			}
-		};
-		size_t posyezi(const Key & key, size_t offset)
-		{
-			mid p;
-			du(&p, offset, 1, sizeof(mid));
-			if (p.bz == true)
-			{
-				size_t i = 0;
-				for (; i < p.geshu; ++i) if (key < p.key[i]) break;
-				if (i == 0) return 0;
-				else
-				{
-					return p.erzi[i - 1];
-				}
-			}
-			else
-			{
-				size_t i = 0;
-				for (; i < p.geshu; ++i)
-				{
-					if (key < p.key[i]) break;
-				}
-				if (i == 0)
-				{
-					return 0;
-				}
-				else
-				{
-					return posyezi(key, p.erzi[i - 1]);
+				else {
+					hebingye(brother_info, brother_data, leaf_info, leafData);
+					return;
 				}
 			}
 
-		}
-		pair<iterator, OperationResult> charuyezi(yezi & ye, const Key & key, const Value & value)
-		{
-			iterator fz;
-			size_t i, j;
-			for (i = 0; i < ye.geshu; ++i)
-			{
-				if (key == ye.a[i].first) return pair<iterator, OperationResult>(iterator(NULL), Fail);
-				if (key < ye.a[i].first) break;
-			}
-			for (j = ye.geshu - 1; j >= i; --j)
-			{
-				ye.a[j + 1].first = ye.a[j].first;
-				ye.a[j + 1].second = ye.a[j].second;
-			}
-			ye.a[i].first = key;
-			ye.a[i].second = value;
-			++ye.geshu;
-			++info.size;
-			fz.bpshu = this;
-			fz.weizhi = i;
-			fz.offset = ye.offset;
-			xie(&info, wenjianpos, 1, sizeof(xinxi));
-			if (ye.geshu <= N) xie(&ye, ye.offset, 1, sizeof(yezi));
-			else fenyezi(ye, fz, key);
-			return pair <iterator, OperationResult>(fz, Success);
-		}
-		void charunode(mid & node, const Key & key, size_t erzi)
-		{
-			size_t i;
-			for (i = 0; i < node.geshu; ++i)
-			{
-				if (key < node.key[i]) break;
-			}
-			size_t j;
-			for (j = node.geshu - 1; j >= i; --j)
-			{
-				node.key[j + 1] = node.key[j];
-				node.erzi[j + 1] = node.erzi[j];
-			}
-			node.key[i] = key;
-			node.erzi[i] = erzi;
-			node.geshu++;
-			if (node.geshu <= M) xie(&node, node.offset, 1, sizeof(mid));
-			else fenmid(node);
-		}
-		void fenyezi(yezi & ye, iterator & t, const Key & key)
-		{
-			yezi newye;
-			newye.geshu = ye.geshu - ye.geshu / 2;
-			ye.geshu /= 2;
-			newye.offset = info.wenjianwei;
-			info.wenjianwei += sizeof(yezi);
-			newye.par = ye.par;
-			size_t i;
-			for (i = 0; i < newye.geshu; ++i)
-			{
-				newye.a[i].first = ye.a[i + ye.geshu].first;
-				newye.a[i].second = ye.a[i + ye.geshu].second;
-				if (newye.a[i].first == key)
-				{
-					t.offset = newye.offset;
-					t.weizhi = i;
+			if (node_pos < parent_info.bsize - 1) {
+				dunode(&brother_info, &brother_data, leaf_info.bnext);
+				brother_info.bpar = leaf_info.bpar;
+				if (brother_info.bsize > pgeshu / 2) {
+					leafData.val[leaf_info.bsize].first = brother_data.val[0].first;
+					leafData.val[leaf_info.bsize].second = brother_data.val[0].second;
+					for (int p = 1; p < brother_info.bsize; ++p) {
+						brother_data.val[p - 1].first = brother_data.val[p].first;
+						brother_data.val[p - 1].second = brother_data.val[p].second;
+					}
+					++leaf_info.bsize;
+					--brother_info.bsize;
+					cbz(leaf_info.bpar, leaf_info.bpos, brother_data.val[0].first);
+					xienode(&leaf_info, &leafData, leaf_info.bpos);
+					xienode(&brother_info, &brother_data, brother_info.bpos);
+					return;
+				}
+				else {
+					hebingye(leaf_info, leafData, brother_info, brother_data);
+					return;
 				}
 			}
-			newye.next = ye.next;
-			newye.pre = ye.offset;
-			ye.next = newye.offset;
-			yezi nextye;
-			if (newye.next == 0) info.wei = newye.offset;
-			else
-			{
-				du(&nextye, newye.next, 1, sizeof(yezi));
-				nextye.pre = newye.offset;
-				xie(&nextye, nextye.offset, 1, sizeof(yezi));
-			}
-			xie(&ye, ye.offset, 1, sizeof(yezi));
-			xie(&newye, newye.offset, 1, sizeof(yezi));
-			xie(&info, wenjianpos, 1, sizeof(xinxi));
-			mid par;
-			du(&par, ye.par, 1, sizeof(mid));
-			charunode(par, newye.a[0].first, newye.offset);
 		}
-		void fenmid(mid & node)
-		{
-			mid newnode;
-			newnode.geshu = node.geshu - node.geshu / 2;
-			node.geshu /= 2;
-			newnode.par = node.par;
-			newnode.bz = node.bz;
-			newnode.offset = info.wenjianwei;
-			info.wenjianwei += sizeof(mid);
-			size_t i;
-			for (i = 0; i < newnode.geshu; ++i)
-			{
-				newnode.key[i] = node.key[i + node.geshu];
-				newnode.erzi[i] = node.erzi[i + node.geshu];
+
+		void jcfile() {
+			if (!wenjian) {
+				wenjian = fopen(BPTREE_ADDRESS, "wb+");
+				write_contentOfTree();
+
+				auto node_head = bpshux.geshu,
+					node_rear = bpshux.geshu + 1;
+
+				bpshux.data_blockHead = node_head;
+				bpshux.data_block_rear = node_rear;
+
+				jianye(0, 0, node_rear);
+				jianye(0, node_head, 0);
+
+				return;
 			}
-			yezi ye;
-			mid midnode;
-			for (i = 0; i < newnode.geshu; ++i)
-			{
-				if (newnode.bz == true)
-				{
-					du(&ye, newnode.erzi[i], 1, sizeof(yezi));
-					ye.par = newnode.offset;
-					xie(&ye, ye.offset, 1, sizeof(yezi));
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, 0);
+			memcpy(&bpshux, buff, sizeof(bpshux));
+		}
+	public:
+		typedef pair<const Key, Value> value_type;
+
+		class const_iterator;
+		class iterator {
+			friend class sjtu::BTree<Key, Value, Compare>::const_iterator;
+			friend iterator sjtu::BTree<Key, Value, Compare>::begin();
+			friend iterator sjtu::BTree<Key, Value, Compare>::end();
+			friend iterator sjtu::BTree<Key, Value, Compare>::find(const Key&);
+			friend pair<iterator, OperationResult> sjtu::BTree<Key, Value, Compare>::insert(const Key&, const Value&);
+		private:
+			BTree* cur_bptree = nullptr;
+			kuaixinxi block_info;
+			int cur_pos = 0;
+
+		public:
+			bool modify(const Value& value) {
+				kuaixinxi info;
+				yedata leafData;
+				dunode(&info, &leafData, block_info.bpos);
+				leafData.val[cur_pos].second = value;
+				xienode(&info, &leafData, block_info.bpos);
+				return true;
+			}
+			iterator() {
+			}
+			iterator(const iterator& other) {
+				cur_bptree = other.cur_bptree;
+				block_info = other.block_info;
+				cur_pos = other.cur_pos;
+			}
+			iterator operator++(int) {
+				auto temp = *this;
+				++cur_pos;
+				if (cur_pos >= block_info.bsize) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bnext);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return temp;
+			}
+			iterator& operator++() {
+				++cur_pos;
+				if (cur_pos >= block_info.bsize) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bnext);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return *this;
+			}
+			iterator operator--(int) {
+				auto temp = *this;
+				if (cur_pos == 0) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bpre);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info.bsize - 1;
 				}
 				else
-				{
-					du(&midnode, newnode.erzi[i], 1, sizeof(mid));
-					midnode.par = newnode.offset;
-					xie(&midnode, midnode.offset, 1, sizeof(mid));
+					--cur_pos;
+				return temp;
+			}
+			iterator& operator--() {
+				if (cur_pos == 0) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bpre);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info.bsize - 1;
 				}
+				else
+					--cur_pos;
+
+				return *this;
 			}
-			if (node.offset == info.root)
-			{
-				mid newroot;
-				newroot.par = 0;
-				newroot.bz = false;
-				newroot.offset = info.wenjianwei;
-				info.wenjianwei += sizeof(mid);
-				newroot.geshu = 2;
-				newroot.key[0] = node.key[0];
-				newroot.erzi[0] = node.offset;
-				newroot.key[1] = newnode.key[0];
-				newroot.erzi[1] = newnode.offset;
-				node.par = newroot.offset;
-				newnode.par = newroot.offset;
-				info.root = newroot.offset;
-				xie(&info, wenjianpos, 1, sizeof(xinxi));
-				xie(&node, node.offset, 1, sizeof(mid));
-				xie(&newnode, newnode.offset, 1, sizeof(mid));
-				xie(&newroot, newroot.offset, 1, sizeof(mid));
+			value_type operator*() const {
+				if (cur_pos >= block_info.bsize)
+					throw invalid_iterator();
+				char buff[kuaisize] = { 0 };
+				memdu(buff, kuaisize, block_info.bpos);
+				yedata leafData;
+				memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+				value_type result(leafData.val[cur_pos].first, leafData.val[cur_pos].second);
+				return result;
 			}
-			else
-			{
-				xie(&info, wenjianpos, 1, sizeof(xinxi));
-				xie(&node, node.offset, 1, sizeof(mid));
-				xie(&newnode, newnode.offset, 1, sizeof(mid));
-				mid parent;
-				du(&parent, node.par, 1, sizeof(mid));
-				charunode(parent, newnode.key[0], newnode.offset);
+			bool operator==(const iterator & rhs) const {
+				return cur_bptree == rhs.cur_bptree
+					&& block_info.bpos == rhs.block_info.bpos
+					&& cur_pos == rhs.cur_pos;
 			}
+			bool operator==(const const_iterator & rhs) const {
+				return block_info.bpos == rhs.block_info.bpos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator!=(const iterator & rhs) const {
+				return cur_bptree != rhs.cur_bptree
+					|| block_info.bpos != rhs.block_info.bpos
+					|| cur_pos != rhs.cur_pos;
+			}
+			bool operator!=(const const_iterator & rhs) const {
+				return block_info.bpos != rhs.block_info.bpos
+					|| cur_pos != rhs.cur_pos;
+			}
+		};
+		class const_iterator {
+			friend class sjtu::BTree<Key, Value, Compare>::iterator;
+			friend const_iterator sjtu::BTree<Key, Value, Compare>::cbegin() const;
+			friend const_iterator sjtu::BTree<Key, Value, Compare>::cend() const;
+			friend const_iterator sjtu::BTree<Key, Value, Compare>::find(const Key&) const;
+		private:
+			kuaixinxi block_info;
+			int cur_pos = 0;
+		public:
+			const_iterator() {
+			}
+			const_iterator(const const_iterator& other) {
+			
+			}
+			const_iterator(const iterator& other) {
+				
+			}
+			const_iterator operator++(int) {
+				auto temp = *this;
+				++cur_pos;
+				if (cur_pos >= block_info.bsize) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bnext);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return temp;
+			}
+			const_iterator& operator++() {
+				++cur_pos;
+				if (cur_pos >= block_info.bsize) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bnext);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return *this;
+			}
+			const_iterator operator--(int) {
+				auto temp = *this;
+				if (cur_pos == 0) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bpre);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info.bsize - 1;
+				}
+				else
+					--cur_pos;
+				return temp;
+			}
+			const_iterator& operator--() {
+				if (cur_pos == 0) {
+					char buff[kuaisize] = { 0 };
+					memdu(buff, kuaisize, block_info.bpre);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info.bsize - 1;
+				}
+				else
+					--cur_pos;
+
+				return *this;
+			}
+			value_type operator*() const {
+				if (cur_pos >= block_info.bsize)
+					throw invalid_iterator();
+				char buff[kuaisize] = { 0 };
+				memdu(buff, kuaisize, block_info.bpos);
+				yedata leafData;
+				memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+				value_type result(leafData.val[cur_pos].first, leafData.val[cur_pos].second);
+				return result;
+			}
+			bool operator==(const iterator & rhs) const {
+				return block_info.bpos == rhs.block_info.bpos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator==(const const_iterator & rhs) const {
+				return block_info.bpos == rhs.block_info.bpos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator!=(const iterator & rhs) const {
+				return block_info.bpos != rhs.block_info.bpos
+					|| cur_pos != rhs.cur_pos;
+			}
+			bool operator!=(const const_iterator & rhs) const {
+				return block_info.bpos != rhs.block_info.bpos
+					|| cur_pos != rhs.cur_pos;
+			}
+		};
+		BTree() {
+			wenjian = fopen(BPTREE_ADDRESS, "rb+");
+			if (!wenjian) {
+				wenjian = fopen(BPTREE_ADDRESS, "wb+");
+				write_contentOfTree();
+
+				auto node_head = bpshux.geshu,
+					node_rear = bpshux.geshu + 1;
+
+				bpshux.data_blockHead = node_head;
+				bpshux.data_block_rear = node_rear;
+
+				jianye(0, 0, node_rear);
+				jianye(0, node_head, 0);
+
+				return;
+			}
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, 0);
+			memcpy(&bpshux, buff, sizeof(bpshux));
 		}
-		OperationResult qiangyou(yezi ye)
-		{
-			if (ye.next == 0) return Fail;
-			yezi right;
-			du(&right, ye.next, 1, sizeof(yezi));
-			if (ye.par != right.par) return Fail;
-			if (right.geshu <= Nmin) return Fail;
-			Key oldkey;
-			Key newkey;
-			oldkey = right.a[0].first;
-			newkey = right.a[1].first;
-			ye.a[ye.geshu].first = right.a[0].first;
-			ye.a[ye.geshu].second = right.a[0].second;
-			ye.geshu++;
-			right.geshu--;
-			size_t i;
-			for (i = 0; i < right.geshu; ++i)
-			{
-				right.a[i].first = right.a[i + 1].first;
-				right.a[i].second = right.a[i + 1].second;
+		BTree(const BTree& other) {
+			wenjian = fopen(BPTREE_ADDRESS, "rb+");
+			bpshux.geshu = other.bpshux.geshu;
+			bpshux.data_blockHead = other.bpshux.data_blockHead;
+			bpshux.data_block_rear = other.bpshux.data_block_rear;
+			bpshux.root_pos = other.bpshux.root_pos;
+			bpshux.bsize = other.bpshux.bsize;
+		}
+		BTree& operator=(const BTree& other) {
+			wenjian = fopen(BPTREE_ADDRESS, "rb+");
+			bpshux.geshu = other.bpshux.geshu;
+			bpshux.data_blockHead = other.bpshux.data_blockHead;
+			bpshux.data_block_rear = other.bpshux.data_block_rear;
+			bpshux.root_pos = other.bpshux.root_pos;
+			bpshux.bsize = other.bpshux.bsize;
+			return *this;
+		}
+		~BTree() {
+			fclose(wenjian);
+		}
+		pair<iterator, OperationResult> insert(const Key& key, const Value& value) {
+			jcfile();
+			if (empty()) {
+				autorootpos = jianye(0, bpshux.data_blockHead, bpshux.data_block_rear);
+
+				kuaixinxi temp_info;
+				yedata temp_data;
+				dunode(&temp_info, &temp_data, bpshux.data_blockHead);
+				temp_info.bnext =rootpos;
+				xienode(&temp_info, &temp_data, bpshux.data_blockHead);
+
+				dunode(&temp_info, &temp_data, bpshux.data_block_rear);
+				temp_info.bpre =rootpos;
+				xienode(&temp_info, &temp_data, bpshux.data_block_rear);
+
+				dunode(&temp_info, &temp_data,rootpos);
+				++temp_info.bsize;
+				temp_data.val[0].first = key;
+				temp_data.val[0].second = value;
+				xienode(&temp_info, &temp_data,rootpos);
+
+				++bpshux.bsize;
+				bpshux.root_pos =rootpos;
+				write_contentOfTree();
+
+				pair<iterator, OperationResult> result(begin(), Success);
+				return result;
 			}
-			mid node;
-			du(&node, ye.par, 1, sizeof(mid));
-			for (i = 0; i < node.geshu; ++i)
-			{
-				if (node.key[i] == oldkey)
-				{
-					node.key[i] = newkey;
+
+			char buff[kuaisize] = { 0 };
+			int cur_pos = bpshux.root_pos, cur_parent = 0;
+			while (true) {
+				memdu(buff, kuaisize, cur_pos);
+				kuaixinxi temp;
+				memcpy(&temp, buff, sizeof(temp));
+				if (cur_parent != temp.bpar) {
+					temp.bpar = cur_parent;
+					memcpy(buff, &temp, sizeof(temp));
+					memxie(buff, kuaisize, cur_pos);
+				}
+				if (temp.blockT) {
 					break;
 				}
-			}
-			xie(&node, node.offset, 1, sizeof(mid));
-			xie(&ye, ye.offset, 1, sizeof(yezi));
-			xie(&right, right.offset, 1, sizeof(yezi));
-			return Success;
-		}
-		OperationResult qiangzuo(yezi & ye)
-		{
-			if (ye.pre == 0) return Fail;
-			yezi left;
-			du(&left, ye.pre, 1, sizeof(yezi));
-			if (ye.par != left.par) return Fail;
-			if (left.geshu <= Nmin) return Fail;
-			Key oldkey;
-			Key newkey;
-			oldkey = ye.a[0].first;
-			newkey = left.a[left.geshu - 1].first;
-			size_t i;
-			for (i = left.geshu - 1; i >= 0; --i)
-			{
-				ye.a[i + 1].first = ye.a[i].first;
-				ye.a[i + 1].second = ye.a[i].second;
-			}
-			ye.a[0].first = left.a[left.geshu - 1].first;
-			ye.a[0].second = left.a[left.geshu - 1].second;
-			ye.geshu++;
-			left.geshu--;
-			mid node;
-			du(&node, ye.par, 1, sizeof(mid));
-			for (i = 0; i < node.geshu; ++i)
-			{
-				if (node.key[i] == oldkey)
-				{
-					node.key[i] = newkey;
-					break;
-				}
-			}
-			xie(&node, node.offset, 1, sizeof(mid));
-			xie(&ye, ye.offset, 1, sizeof(yezi));
-			xie(&left, left.offset, 1, sizeof(yezi));
-			return Success;
-		}
-		OperationResult hebingyou(yezi ye)
-		{
-			if (ye.next == 0) return Fail;
-			yezi right;
-			du(&right, ye.next, 1, sizeof(yezi));
-			if (right.par != ye.par) return Fail;
-			size_t i;
-			for (i = 0; i < right.geshu; ++i)
-			{
-				ye.a[ye.geshu].first = right.a[i].first;
-				ye.a[ye.geshu].second = right.a[i].second;
-				++ye.geshu;
-			}
-			ye.next = right.next;
-			if (right.offset == info.wei)
-			{
-				info.wei = ye.offset;
-				xie(&info, wenjianpos, 1, sizeof(xinxi));
-			}
-			else
-			{
-				yezi p;
-				du(&p, ye.next, 1, sizeof(yezi));
-				p.pre = ye.offset;
-				xie(&p, p.offset, 1, sizeof(yezi));
-			}
-			mid node;
-			du(&node, ye.par, 1, sizeof(mid));
-			for (i = 0; i < node.geshu; ++i)
-			{
-				if (node.key[i] == right.a[0].first) break;
-			}
-			size_t j;
-			for (j = i; j < node.geshu - 1; ++j)
-			{
-				node.key[j] = node.key[j + 1];
-				node.erzi[j] = node.erzi[j + 1];
-			}
-			node.geshu--;
-			xie(&ye, ye.offset, 1, sizeof(yezi));
-			if (midjiancha(node) == Success)
-			{
-				xie(&node, node.offset, 1, sizeof(mid));
-			}
-			else
-			{
-				tiaomid(node);
-			}
-			return Success;
-		}
-		OperationResult hebingzuo(yezi ye)
-		{
-			if (ye.pre == 0) return Fail;
-			yezi left;
-			du(&left, ye.pre, 1, sizeof(yezi));
-			if (left.par != ye.par) return Fail;
-			size_t i;
-			for (i = 0; i < ye.geshu; ++i)
-			{
-				left.a[left.geshu].first = ye.a[i].first;
-				left.a[left.geshu].second = ye.a[i].second;
-				++left.geshu;
-			}
-			left.next = ye.next;
-			if (ye.offset == info.wei)
-			{
-				info.wei = left.offset;
-				xie(&info, wenjianpos, 1, sizeof(xinxi));
-			}
-			else
-			{
-				yezi p;
-				du(&p, left.next, 1, sizeof(yezi));
-				p.pre = left.offset;
-				xie(&p, p.offset, 1, sizeof(yezi));
-			}
-			mid node;
-			du(&node, left.par, 1, sizeof(mid));
-			for (i = 0; i < node.geshu; ++i)
-			{
-				if (node.key[i] == ye.a[0].first) break;
-			}
-			size_t j;
-			for (j = i; j < node.geshu - 1; ++j)
-			{
-				node.key[j] = node.key[j + 1];
-				node.erzi[j] = node.erzi[j + 1];
-			}
-			node.geshu--;
-			xie(&left, left.offset, 1, sizeof(yezi));
-			if (midjiancha(node) == Success)
-			{
-				xie(&node, node.offset, 1, sizeof(mid));
-			}
-			else
-			{
-				tiaomid(node);
-			}
-			return Success;
-		}
-		OperationResult midjiancha(mid node)
-		{
-			if (node.par == 0) return Success;
-			if (node.geshu >= Mmin) return Success;
-			return Fail;
-		}
-		void tiaoye(yezi ye)
-		{
-			if (qiangyou(ye) == Success) return;
-			if (qiangzuo(ye) == Success) return;
-			if (hebingyou(ye) == Success) return;
-			if (hebingzuo(ye) == Success) return;
-			xie(&ye, ye.offset, 1, sizeof(yezi));
-		}
-		void tiaomid(mid node)
-		{
-			if (qiangyounode(node) == Success) return;
-			if (qiangzuonode(node) == Success) return;
-			if (hebingyounode(node) == Success) return;
-			if (hebingzuonode(node) == Success) return;
-			mid parent;
-			du(&parent, node.par, 1, sizeof(mid));
-			if (parent.par == 0)
-			{
-				info.root = node.offset;
-				node.par = 0;
-				xie(&info, wenjianpos, 1, sizeof(xinxi));
-				xie(&node, node.offset, 1, sizeof(mid));
-			}
-			else
-			{
-				mid p;
-				du(&p, parent.par, 1, sizeof(mid));
-				size_t i;
-				for (i = 0; i < p.geshu; ++i)
-				{
-					if (p.erzi[i] == parent.offset)
-					{
-						p.erzi[i] = node.offset;
+				wjk normalData;
+				memcpy(&normalData, buff + kuaixinxisize, sizeof(normalData));
+				int child_pos = temp.bsize - 1;
+				for (; child_pos > 0; --child_pos) {
+					if (!(normalData.val[child_pos - 1].nodekey > key)) {
 						break;
 					}
 				}
-				node.par = p.offset;
-				xie(&p, p.offset, 1, sizeof(mid));
-				xie(&node, node.offset, 1, sizeof(mid));
+				cur_parent = cur_pos;
+				cur_pos = normalData.val[child_pos].nodeerzi;
 			}
-		}
-		OperationResult qiangyounode(mid node)
-		{
-			if (node.par == 0) return Fail;
-			mid parent;
-			du(&parent, node.par, 1, sizeof(mid));
-			size_t i;
-			for (i = 0; i < parent.geshu; ++i)
-			{
-				if (parent.erzi[i] == node.offset) break;
-			}
-			if (i == parent.geshu - 1) return Fail;
-			mid right;
-			du(&right, parent.erzi[i + 1], 1, sizeof(mid));
-			if (right.geshu <= Mmin) return Fail;
-			node.key[node.geshu] = right.key[0];
-			node.erzi[node.geshu] = right.erzi[0];
-			++node.geshu;
-			size_t j;
-			for (j = 0; j < right.geshu - 1; ++j)
-			{
-				right.key[j] = right.key[j + 1];
-				right.erzi[j] = right.erzi[j + 1];
-			}
-			--right.geshu;
-			parent.key[i + 1] = right.key[0];
-			if (node.bz == true)
-			{
-				yezi child;
-				du(&child, node.erzi[node.geshu - 1], 1, sizeof(yezi));
-				child.par = node.offset;
-				xie(&child, child.offset, 1, sizeof(yezi));
-			}
-			else
-			{
-				mid child;
-				du(&child, node.erzi[node.geshu - 1], 1, sizeof(mid));
-				child.par = node.offset;
-				xie(&child, child.offset, 1, sizeof(mid));
-			}
-			xie(&node, node.offset, 1, sizeof(mid));
-			xie(&right, right.offset, 1, sizeof(mid));
-			xie(&parent, parent.offset, 1, sizeof(mid));
-			return Success;
-		}
-		OperationResult qiangzuonode(mid node)
-		{
-			if (node.par == 0) return Fail;
-			mid parent;
-			du(&parent, node.par, 1, sizeof(mid));
-			size_t i;
-			for (i = 0; i < parent.geshu; ++i)
-			{
-				if (parent.erzi[i] == node.offset) break;
-			}
-			if (i == 0) return Fail;
-			mid left;
-			du(&left, parent.erzi[i - 1], 1, sizeof(mid));
-			if (left.geshu <= Mmin) return Fail;
-			size_t j;
-			for (j = node.geshu - 1; j >= 0; --j)
-			{
-				node.key[j + 1] = node.key[j];
-				node.erzi[j + 1] = node.erzi[j];
-			}
-			node.key[0] = left.key[left.geshu - 1];
-			node.erzi[0] = left.erzi[left.geshu - 1];
-			++node.geshu;
-			--left.geshu;
-			parent.key[i] = node.key[0];
-			if (node.bz == true)
-			{
-				yezi child;
-				du(&child, node.erzi[0], 1, sizeof(yezi));
-				child.par = node.offset;
-				xie(&child, child.offset, 1, sizeof(yezi));
-			}
-			else
-			{
-				mid child;
-				du(&child, node.erzi[0], 1, sizeof(mid));
-				child.par = node.offset;
-				xie(&child, child.offset, 1, sizeof(mid));
-			}
-			xie(&node, node.offset, 1, sizeof(mid));
-			xie(&left, left.offset, 1, sizeof(mid));
-			xie(&parent, parent.offset, 1, sizeof(mid));
-			return Success;
-		}
-		OperationResult hebingyounode(mid node)
-		{
-			if (node.par == 0) return Fail;
-			mid par;
-			du(&par, node.par, 1, sizeof(mid));
-			size_t i;
-			for (i = 0; i < par.geshu; ++i)
-			{
-				if (par.erzi[i] == node.offset) break;
-			}
-			if (i == par.geshu) throw "bao le";
-			if (i == par.geshu - 1) return Fail;
-			mid right;
-			du(&right, par.erzi[i + 1], 1, sizeof(mid));
-			size_t j;
-			for (j = 0; j < right.geshu; ++j)
-			{
-				node.key[node.geshu] = right.key[j];
-				node.erzi[node.geshu] = right.erzi[j];
-				if (node.bz == true)
-				{
-					yezi child;
-					du(&child, node.erzi[node.geshu], 1, sizeof(yezi));
-					child.par = node.offset;
-					xie(&child, child.offset, 1, sizeof(yezi));
+
+			kuaixinxi info;
+			memcpy(&info, buff, sizeof(info));
+			yedata leafData;
+			memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+			for (int value_pos = 0;; ++value_pos) {
+				if (value_pos < info.bsize && (!(leafData.val[value_pos].first<key || leafData.val[value_pos].first>key))) {
+					return pair<iterator, OperationResult>(end(), Fail);
 				}
-				else
-				{
-					mid child;
-					du(&child, node.erzi[node.geshu], 1, sizeof(mid));
-					child.par = node.offset;
-					xie(&child, child.offset, 1, sizeof(mid));
+				if (value_pos >= info.bsize || leafData.val[value_pos].first > key) {
+					if (info.bsize >= pgeshu) {
+						auto cur_key = fenyezi(cur_pos, info, leafData);
+						if (key > cur_key) {
+							cur_pos = info.bnext;
+							value_pos -= info.bsize;
+							dunode(&info, &leafData, cur_pos);
+						}
+					}
+
+					for (int p = info.bsize - 1; p >= value_pos; --p) {
+						leafData.val[p + 1].first = leafData.val[p].first;
+						leafData.val[p + 1].second = leafData.val[p].second;
+						if (p == value_pos)
+							break;
+					}
+					leafData.val[value_pos].first = key;
+					leafData.val[value_pos].second = value;
+					++info.bsize;
+					xienode(&info, &leafData, cur_pos);
+					iterator ans;
+					ans.block_info = info;
+					ans.cur_bptree = this;
+					ans.cur_pos = value_pos;
+					++bpshux.bsize;
+					write_contentOfTree();
+					pair<iterator, OperationResult> to_return(ans, Success);
+					return to_return;
 				}
-				++node.geshu;
 			}
-			for (j = i + 1; j < par.geshu - 1; ++j)
-			{
-				par.key[j] = par.key[j + 1];
-				par.erzi[j] = par.erzi[j + 1];
-			}
-			--par.geshu;
-			xie(&node, node.offset, 1, sizeof(mid));
-			if (midjiancha(par) == Success) xie(&par, par.offset, 1, sizeof(mid));
-			else tiaomid(par);
-			return Success;
+			return pair<iterator, OperationResult>(end(), Fail);
 		}
-		OperationResult hebingzuonode(mid node)
-		{
-			if (node.par == 0) return Fail;
-			mid par;
-			du(&par, node.par, 1, sizeof(mid));
-			size_t i;
-			for (i = 0; i < par.geshu; ++i)
-			{
-				if (par.erzi[i] == node.offset) break;
-			}
-			if (i == 0) return Fail;
-			mid left;
-			du(&left, par.erzi[i - 1], 1, sizeof(mid));
-			size_t j;
-			for (j = 0; j < node.geshu; ++j)
-			{
-				left.key[left.geshu] = node.key[j];
-				left.erzi[left.geshu] = node.erzi[j];
-				if (left.bz == true)
-				{
-					yezi child;
-					du(&child, left.erzi[left.geshu], 1, sizeof(yezi));
-					child.par = left.offset;
-					xie(&child, child.offset, 1, sizeof(yezi));
-				}
-				else
-				{
-					mid child;
-					du(&child, left.erzi[left.geshu], 1, sizeof(mid));
-					child.par = left.offset;
-					xie(&child, child.offset, 1, sizeof(mid));
-				}
-				++left.geshu;
-			}
-			for (j = i; j < par.geshu - 1; ++j)
-			{
-				par.key[j] = par.key[j + 1];
-				par.erzi[j] = par.erzi[j + 1];
-			}
-			--par.geshu;
-			xie(&left, left.offset, 1, sizeof(mid));
-			if (midjiancha(par) == Success) xie(&par, par.offset, 1, sizeof(mid));
-			else tiaomid(par);
-			return Success;
-		}
-		void buildtree()
-		{
-			info.size = 0;
-			info.wenjianwei = sizeof(xinxi);
-			mid root;
-			yezi ye;
-			info.root = root.offset = info.wenjianwei;
-			info.wenjianwei += sizeof(mid);
-			info.head = info.wei = ye.offset = info.wenjianwei;
-			info.wenjianwei += sizeof(yezi);
-			root.par = 0;
-			root.geshu = 1;
-			root.bz = 1;
-			root.erzi[0] = ye.offset;
-			ye.par = root.offset;
-			ye.next = ye.pre = 0;
-			ye.geshu = 0;
-			xie(&info, wenjianpos, 1, sizeof(xinxi));
-			xie(&root, root.offset, 1, sizeof(mid));
-			xie(&ye, ye.offset, 1, sizeof(yezi));
-		}
-		// Default Constructor and Copy Constructor
-		BTree() {
-			filename.qiming(0);
-			wenjian = NULL;
-			dakai();
-			if (flag == false) buildtree();
-		}
-		BTree(const BTree & other) {
-			filename.qiming(0);
-			dakai();
-			copyfile(filename.ch, other.filename.ch);
-		}
-		BTree& operator=(const BTree & other) {
-			filename.qiming(0);
-			dakai();
-			copyfile(filename.ch, other.filename.ch);
-		}
-		~BTree() {
-			guanbi();
-		}
-		// Insert: Insert certain Key-Value into the database
-		// Return a pair, the first of the pair is the iterator point to the new
-		// element, the second of the pair is Success if it is successfully inserted
-		pair<iterator, OperationResult> insert(const Key & key, const Value & value) {
-			size_t yeoffset = posyezi(key, info.root);
-			yezi ye;
-			if (info.size == 0 || yeoffset == 0)
-			{
-				du(&ye, info.head, 1, sizeof(yezi));
-				pair <iterator, OperationResult> p = charuyezi(ye, key, value);
-				if (p.second == Fail) return p;
-				size_t offset = ye.par;
-				mid node;
-				while (offset != 0)
-				{
-					du(&node, offset, 1, sizeof(mid));
-					node.key[0] = key;
-					xie(&node, offset, 1, sizeof(mid));
-					offset = node.par;
-				}
-				return p;
-			}
-			du(&ye, yeoffset, 1, sizeof(mid));
-			pair <iterator, OperationResult> q = charuyezi(ye, key, value);
-			return q;
-		}
-		// Erase: Erase the Key-Value
-		// Return Success if it is successfully erased
-		// Return Fail if the key doesn't exist in the database
 		OperationResult erase(const Key & key) {
-			size_t yeoffset = posyezi(key, info.root);
-			if (yeoffset == 0) return Fail;
-			yezi ye;
-			du(&ye, yeoffset, 1, sizeof(yezi));
-			size_t i;
-			for (i = 0; i < ye.geshu; ++i)
-			{
-				if (ye.a[i].first == key) break;
+			jcfile();
+			if (empty()) {
+				return Fail;
 			}
-			if (i == ye.geshu) return Fail;
-			size_t j;
-			for (j = i + 1; j < ye.geshu; ++j)
-			{
-				ye.a[j - 1].first = ye.a[j].first;
-				ye.a[j - 1].second = ye.a[j].second;
-			}
-			ye.geshu--;
-			size_t midoffset = ye.par;
-			mid node;
-			while (i == 0)
-			{
-				if (midoffset == 0) break;
-				du(&node, midoffset, 1, sizeof(mid));
-				i = 0;
-				for (; i < node.geshu; ++i)
-				{
-					if (node.key[i] == key) break;
+			char buff[kuaisize] = { 0 };
+			int cur_pos = bpshux.root_pos, cur_parent = 0;
+			while (true) {
+				memdu(buff, kuaisize, cur_pos);
+				kuaixinxi temp;
+				memcpy(&temp, buff, sizeof(temp));
+				if (cur_parent != temp.bpar) {
+					temp.bpar = cur_parent;
+					memcpy(buff, &temp, sizeof(temp));
+					memxie(buff, kuaisize, cur_pos);
 				}
-				node.key[i] = ye.a[0].first;
-				xie(&node, node.offset, 1, sizeof(mid));
-				midoffset = node.par;
+				if (temp.blockT) {
+					break;
+				}
+				wjk normalData;
+				memcpy(&normalData, buff + kuaixinxisize, sizeof(normalData));
+				int child_pos = temp.bsize - 1;
+				for (; child_pos > 0; --child_pos) {
+					if (!(normalData.val[child_pos - 1].nodekey > key)) {
+						break;
+					}
+				}
+				cur_parent = cur_pos;
+				cur_pos = normalData.val[child_pos].nodeerzi;
 			}
-			info.size--;
-			xie(&info, wenjianpos, 1, sizeof(xinxi));
-			if (ye.geshu < Nmin)
-			{
-				tiaoye(ye);
-				return Success;
+
+			kuaixinxi info;
+			memcpy(&info, buff, sizeof(info));
+			yedata leafData;
+			memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+			for (int value_pos = 0;; ++value_pos) {
+				if (value_pos < info.bsize && (!(leafData.val[value_pos].first<key || leafData.val[value_pos].first>key))) {
+					--info.bsize;
+					for (int p = value_pos; p < info.bsize; ++p) {
+						leafData.val[p].first = leafData.val[p + 1].first;
+						leafData.val[p].second = leafData.val[p + 1].second;
+					}
+					balance_leaf(info, leafData);
+					--bpshux.bsize;
+					write_contentOfTree();
+					return Success;
+				}
+				if (value_pos >= info.bsize || leafData.val[value_pos].first > key) {
+					return Fail;
+				}
 			}
-			xie(&ye, yeoffset, 1, sizeof(yezi));
-			return Success;
+			return Fail; 
 		}
-		// Return a iterator to the beginning
 		iterator begin() {
-			return iterator(this, info.head, 0);
+			jcfile();
+			iterator result;
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, bpshux.data_blockHead);
+			kuaixinxi blockHead;
+			memcpy(&blockHead, buff, sizeof(blockHead));
+			result.block_info = blockHead;
+			result.cur_bptree = this;
+			result.cur_pos = 0;
+			++result;
+			return result;
 		}
 		const_iterator cbegin() const {
-			return const_iterator(this, info.head, 0);
+			const_iterator result;
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, bpshux.data_blockHead);
+			kuaixinxi blockHead;
+			memcpy(&blockHead, buff, sizeof(blockHead));
+			result.block_info = blockHead;
+			result.cur_pos = 0;
+			++result;
+			return result;
 		}
-		// Return a iterator to the end(the next element after the last)
 		iterator end() {
-			yezi wei;
-			du(&wei, info.wei, 1, sizeof(yezi));
-			return iterator(this, info.wei, wei.geshu);
+			jcfile();
+			iterator result;
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, bpshux.data_block_rear);
+			kuaixinxi blockHead;
+			memcpy(&blockHead, buff, sizeof(blockHead));
+			result.block_info = blockHead;
+			result.cur_bptree = this;
+			result.cur_pos = 0;
+			return result;
 		}
 		const_iterator cend() const {
-			yezi wei;
-			du(&wei, info.wei, 1, sizeof(yezi));
-			return const_iterator(this, info.wei, wei.geshu);
+			const_iterator result;
+			char buff[kuaisize] = { 0 };
+			memdu(buff, kuaisize, bpshux.data_block_rear);
+			kuaixinxi blockHead;
+			memcpy(&blockHead, buff, sizeof(blockHead));
+			result.block_info = blockHead;
+			result.cur_pos = 0;
+			return result;
 		}
-		// Check whether this BTree is empty
 		bool empty() const {
-			if (info.size == 0)
+			if (!wenjian)
 				return true;
-			else return false;
+			return bpshux.bsize == 0;
 		}
-		// Return the number of <K,V> pairs
-		size_t size() const {
-			return info.size;
+
+		int size() const {
+			if (!wenjian)
+				return 0;
+			return bpshux.bsize;
 		}
-		// Clear the BTree
 		void clear() {
-			wenjian = fopen(filename.ch, "w");
-			fclose(wenjian);
-			dakai();
-			buildtree();
+			if (!wenjian)
+				return;
+			remove(BPTREE_ADDRESS);
+			wjxinxi new_fileHead;
+			bpshux = new_fileHead;
+			wenjian = nullptr;
 		}
-		// Return the value refer to the Key(key)
 		Value at(const Key & key) {
-			iterator t = find(key);
-			yezi ye;
-			if (t == end())
-			{
-				throw "zha le";
+			if (empty()) {
+				throw container_is_empty();
 			}
-			du(&ye, t.offset, 1, sizeof(yezi));
-			return ye.a[t.weizhi].second;
+
+			char buff[kuaisize] = { 0 };
+			int cur_pos = bpshux.root_pos, cur_parent = 0;
+			while (true) {
+				memdu(buff, kuaisize, cur_pos);
+				kuaixinxi temp;
+				memcpy(&temp, buff, sizeof(temp));
+
+				if (cur_parent != temp.bpar) {
+					temp.bpar = cur_parent;
+					memcpy(buff, &temp, sizeof(temp));
+					memxie(buff, kuaisize, cur_pos);
+				}
+				if (temp.blockT) {
+					break;
+				}
+				wjk normalData;
+				memcpy(&normalData, buff + kuaixinxisize, sizeof(normalData));
+				int child_pos = temp.bsize - 1;
+				for (; child_pos > 0; --child_pos) {
+					if (!(normalData.val[child_pos - 1].nodekey > key)) {
+						break;
+					}
+				}
+				cur_pos = normalData.val[child_pos].nodeerzi;
+			}
+			kuaixinxi info;
+			memcpy(&info, buff, sizeof(info));
+			yedata leafData;
+			memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+			for (int value_pos = 0;; ++value_pos) {
+				if (value_pos < info.bsize && (!(leafData.val[value_pos].first<key || leafData.val[value_pos].first>key))) {
+					return leafData.val[value_pos].second;
+				}
+				if (value_pos >= info.bsize || leafData.val[value_pos].first > key) {
+					throw index_out_of_bound();
+				}
+			}
 		}
-		/**
-		 * Returns the number of elements with key
-		 *   that compares equivalent to the specified argument,
-		 * The default method of check the equivalence is !(a < b || b > a)
-		 */
-		size_t count(const Key & key) const {
-			return static_cast<size_t> (find(key) != iterator(NULL));
+		int count(const Key & key) const {
+			return find(key) == cend() ? 0 : 1;
 		}
-		/**
-		 * Finds an element with key equivalent to key.
-		 * key value of the element to search for.
-		 * Iterator to an element with key equivalent to key.
-		 *   If no such element is found, past-the-end (see end()) iterator is
-		 * returned.
-		 */
 		iterator find(const Key & key) {
-			size_t yeoffset = posyezi(key, info.root);
-			if (yeoffset == 0) return end();
-			yezi ye;
-			du(&ye, yeoffset, 1, sizeof(yezi));
-			size_t i;
-			for (i = 0; i < ye.geshu; ++i)
-			{
-				if (ye.a[i].first == key) return iterator(this, yeoffset, i);
+			if (empty()) {
+				return end();
+			}
+
+			char buff[kuaisize] = { 0 };
+			int cur_pos = bpshux.root_pos, cur_parent = 0;
+			while (true) {
+				memdu(buff, kuaisize, cur_pos);
+				kuaixinxi temp;
+				memcpy(&temp, buff, sizeof(temp));
+
+				if (cur_parent != temp.bpar) {
+					temp.bpar = cur_parent;
+					memcpy(buff, &temp, sizeof(temp));
+					memxie(buff, kuaisize, cur_pos);
+				}
+				if (temp.blockT) {
+					break;
+				}
+				wjk normalData;
+				memcpy(&normalData, buff + kuaixinxisize, sizeof(normalData));
+				int child_pos = temp.bsize - 1;
+				for (; child_pos > 0; --child_pos) {
+					if (!(normalData.val[child_pos - 1].nodekey > key)) {
+						break;
+					}
+				}
+				cur_pos = normalData.val[child_pos].nodeerzi;
+			}
+			kuaixinxi info;
+			memcpy(&info, buff, sizeof(info));
+			sizeof(wjk);
+			yedata leafData;
+			memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+			for (int value_pos = 0;; ++value_pos) {
+				if (value_pos < info.bsize && (!(leafData.val[value_pos].first<key || leafData.val[value_pos].first>key))) {
+					iterator result;
+					result.cur_bptree = this;
+					result.block_info = info;
+					result.cur_pos = value_pos;
+					return result;
+				}
+				if (value_pos >= info.bsize || leafData.val[value_pos].first > key) {
+					return end();
+				}
 			}
 			return end();
 		}
 		const_iterator find(const Key & key) const {
-			size_t yeoffset = posyezi(key, info.root);
-			if (yeoffset == 0) return cend();
-			yezi ye;
-			du(&ye, yeoffset, 1, sizeof(yezi));
-			size_t i;
-			for (i = 0; i < ye.geshu; ++i)
-			{
-				if (ye.a[i].first == key) return const_iterator(this, yeoffset, i);
+			if (empty()) {
+				return cend();
+			}
+
+			char buff[kuaisize] = { 0 };
+			int cur_pos = bpshux.root_pos, cur_parent = 0;
+			while (true) {
+				memdu(buff, kuaisize, cur_pos);
+				kuaixinxi temp;
+				memcpy(&temp, buff, sizeof(temp));
+
+				if (cur_parent != temp.bpar) {
+					temp.bpar = cur_parent;
+					memcpy(buff, &temp, sizeof(temp));
+					memxie(buff, kuaisize, cur_pos);
+				}
+				if (temp.blockT) {
+					break;
+				}
+				wjk normalData;
+				memcpy(&normalData, buff + kuaixinxisize, sizeof(normalData));
+				int child_pos = temp.bsize - 1;
+				for (; child_pos > 0; --child_pos) {
+					if (!(normalData.val[child_pos - 1].nodekey > key)) {
+						break;
+					}
+				}
+				cur_pos = normalData.val[child_pos].nodeerzi;
+			}
+			kuaixinxi info;
+			memcpy(&info, buff, sizeof(info));
+			yedata leafData;
+			memcpy(&leafData, buff + kuaixinxisize, sizeof(leafData));
+			for (int value_pos = 0;; ++value_pos) {
+				if (value_pos < info.bsize && (!(leafData.val[value_pos].first<key || leafData.val[value_pos].first>key))) {
+					const_iterator result;
+					result.block_info = info;
+					result.cur_pos = value_pos;
+					return result;
+				}
+				if (value_pos >= info.bsize || leafData.val[value_pos].first > key) {
+					return cend();
+				}
 			}
 			return cend();
 		}
 	};
-}  // namespace sjtu
-
+	template <typename Key, typename Value, typename Compare> FILE* BTree<Key, Value, Compare>::wenjian = nullptr;
+}
