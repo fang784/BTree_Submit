@@ -7,13 +7,6 @@
 namespace sjtu {
 	template <class Key, class Value, class Compare = std::less<Key> >
 	class BTree {
-		const char BPTREE_ADDRESS[12] = "sjtu";
-		const static int BLOCK_SIZE = 4096;
-		const static int INIT_SIZE = sizeof(BlockHead);
-		const static int KEY_SIZE = sizeof(Key);
-		const static int VALUE_SIZE = sizeof(Value);
-		const static int BLOCK_KEY_NUM = (BLOCK_SIZE - INIT_SIZE) / sizeof(DataNode) - 1;
-		const static int BLOCK_PAIR_NUM = (BLOCK_SIZE - INIT_SIZE) / (KEY_SIZE + VALUE_SIZE) - 1;
 	private:
 		class BlockHead {
 		public:
@@ -37,6 +30,13 @@ namespace sjtu {
 			int data_block_rear = 0;
 			int _size = 0;
 		};
+		const static int BLOCK_SIZE = 4096;
+		const static int INIT_SIZE = sizeof(BlockHead);
+		const static int KEY_SIZE = sizeof(Key);
+		const static int VALUE_SIZE = sizeof(Value);
+		const static int BLOCK_KEY_NUM = (BLOCK_SIZE - INIT_SIZE) / sizeof(DataNode) - 1;
+		const static int BLOCK_PAIR_NUM = (BLOCK_SIZE - INIT_SIZE) / (KEY_SIZE + VALUE_SIZE) - 1;
+		const char BPTREE_ADDRESS[12] = "sjtu";
 		class NormalData {
 		public:
 			DataNode val[BLOCK_KEY_NUM];
