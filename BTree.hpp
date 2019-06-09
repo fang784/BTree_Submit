@@ -5,232 +5,15 @@
 #include <map>
 #include <cstdio>
 namespace sjtu {
-	const char BPTREE_ADDRESS[12] = "sjtu";
 	template <class Key, class Value, class Compare = std::less<Key> >
 	class BTree {
-	public:
-		typedef pair<const Key, Value> value_type;
-
-		class const_iterator;
-		class iterator {
-			friend class sjtu::BTree<Key, Value, Compare>::const_iterator;
-			friend iterator sjtu::BTree<Key, Value, Compare>::begin();
-			friend iterator sjtu::BTree<Key, Value, Compare>::end();
-			friend iterator sjtu::BTree<Key, Value, Compare>::find(const Key&);
-			friend pair<iterator, OperationResult> sjtu::BTree<Key, Value, Compare>::insert(const Key&, const Value&);
-		private:
-			BTree* cur_bptree = nullptr;
-			BlockHead block_info;
-			int cur_pos = 0;
-
-		public:
-			bool modify(const Value& value) {
-				BlockHead info;
-				LeafData leafData;
-				read_block(&info, &leafData, block_info._pos);
-				leafData.val[cur_pos].second = value;
-				write_block(&info, &leafData, block_info._pos);
-				return true;
-			}
-			iterator() {
-
-			}
-			iterator(const iterator& other) {
-
-				cur_bptree = other.cur_bptree;
-				block_info = other.block_info;
-				cur_pos = other.cur_pos;
-			}
-
-			iterator operator++(int) {
-
-				auto temp = *this;
-				++cur_pos;
-				if (cur_pos >= block_info._size) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._next);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = 0;
-				}
-				return temp;
-			}
-			iterator& operator++() {
-
-				++cur_pos;
-				if (cur_pos >= block_info._size) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._next);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = 0;
-				}
-				return *this;
-			}
-			iterator operator--(int) {
-
-				auto temp = *this;
-				if (cur_pos == 0) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._prev);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = block_info._size - 1;
-				}
-				else
-					--cur_pos;
-				return temp;
-			}
-			iterator& operator--() {
-
-				if (cur_pos == 0) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._prev);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = block_info._size - 1;
-				}
-				else
-					--cur_pos;
-
-				return *this;
-			}
-
-			value_type operator*() const {
-
-				if (cur_pos >= block_info._size)
-					throw invalid_iterator();
-				char buff[BLOCK_SIZE] = { 0 };
-				mem_read(buff, BLOCK_SIZE, block_info._pos);
-				LeafData leafData;
-				memcpy(&leafData, buff + INIT_SIZE, sizeof(leafData));
-				value_type result(leafData.val[cur_pos].first, leafData.val[cur_pos].second);
-				return result;
-			}
-			bool operator==(const iterator & rhs) const {
-
-				return cur_bptree == rhs.cur_bptree
-					&& block_info._pos == rhs.block_info._pos
-					&& cur_pos == rhs.cur_pos;
-			}
-			bool operator==(const const_iterator & rhs) const {
-
-				return block_info._pos == rhs.block_info._pos
-					&& cur_pos == rhs.cur_pos;
-			}
-			bool operator!=(const iterator & rhs) const {
-
-				return cur_bptree != rhs.cur_bptree || block_info._pos != rhs.block_info._pos || cur_pos != rhs.cur_pos;
-			}
-			bool operator!=(const const_iterator & rhs) const {
-
-				return block_info._pos != rhs.block_info._pos
-					|| cur_pos != rhs.cur_pos;
-			}
-		};
-		class const_iterator {
-
-			friend class sjtu::BTree<Key, Value, Compare>::iterator;
-			friend const_iterator sjtu::BTree<Key, Value, Compare>::cbegin() const;
-			friend const_iterator sjtu::BTree<Key, Value, Compare>::cend() const;
-			friend const_iterator sjtu::BTree<Key, Value, Compare>::find(const Key&) const;
-		private:
-
-			BlockHead block_info;
-			int cur_pos = 0;
-		public:
-			const_iterator() {
-
-			}
-			const_iterator(const const_iterator& other) {
-
-				block_info = other.block_info;
-				cur_pos = other.cur_pos;
-			}
-			const_iterator(const iterator& other) {
-
-				block_info = other.block_info;
-				cur_pos = other.cur_pos;
-			}
-
-			const_iterator operator++(int) {
-
-				auto temp = *this;
-				++cur_pos;
-				if (cur_pos >= block_info._size) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._next);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = 0;
-				}
-				return temp;
-			}
-			const_iterator& operator++() {
-
-				++cur_pos;
-				if (cur_pos >= block_info._size) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._next);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = 0;
-				}
-				return *this;
-			}
-			const_iterator operator--(int) {
-
-				auto temp = *this;
-				if (cur_pos == 0) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._prev);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = block_info._size - 1;
-				}
-				else
-					--cur_pos;
-				return temp;
-			}
-			const_iterator& operator--() {
-
-				if (cur_pos == 0) {
-					char buff[BLOCK_SIZE] = { 0 };
-					mem_read(buff, BLOCK_SIZE, block_info._prev);
-					memcpy(&block_info, buff, sizeof(block_info));
-					cur_pos = block_info._size - 1;
-				}
-				else
-					--cur_pos;
-
-				return *this;
-			}
-
-			value_type operator*() const {
-
-				if (cur_pos >= block_info._size)
-					throw invalid_iterator();
-				char buff[BLOCK_SIZE] = { 0 };
-				mem_read(buff, BLOCK_SIZE, block_info._pos);
-				LeafData leafData;
-				memcpy(&leafData, buff + INIT_SIZE, sizeof(leafData));
-				value_type result(leafData.val[cur_pos].first, leafData.val[cur_pos].second);
-				return result;
-			}
-			bool operator==(const iterator & rhs) const {
-
-				return block_info._pos == rhs.block_info._pos
-					&& cur_pos == rhs.cur_pos;
-			}
-			bool operator==(const const_iterator & rhs) const {
-
-				return block_info._pos == rhs.block_info._pos
-					&& cur_pos == rhs.cur_pos;
-			}
-			bool operator!=(const iterator & rhs) const {
-
-				return block_info._pos != rhs.block_info._pos
-					|| cur_pos != rhs.cur_pos;
-			}
-			bool operator!=(const const_iterator & rhs) const {
-
-				return block_info._pos != rhs.block_info._pos
-					|| cur_pos != rhs.cur_pos;
-			}
-		};
+		const char BPTREE_ADDRESS[12] = "sjtu";
+		const static int BLOCK_SIZE = 4096;
+		const static int INIT_SIZE = sizeof(BlockHead);
+		const static int KEY_SIZE = sizeof(Key);
+		const static int VALUE_SIZE = sizeof(Value);
+		const static int BLOCK_KEY_NUM = (BLOCK_SIZE - INIT_SIZE) / sizeof(DataNode) - 1;
+		const static int BLOCK_PAIR_NUM = (BLOCK_SIZE - INIT_SIZE) / (KEY_SIZE + VALUE_SIZE) - 1;
 	private:
 		class BlockHead {
 		public:
@@ -241,18 +24,10 @@ namespace sjtu {
 			int _prev = 0;
 			int _next = 0;
 		};
-
 		struct DataNode {
 			int _child = 0;
 			Key _key;
 		};
-
-		const static int BLOCK_SIZE = 4096;
-		const static int INIT_SIZE = sizeof(BlockHead);
-		const static int KEY_SIZE = sizeof(Key);
-		const static int VALUE_SIZE = sizeof(Value);
-		const static int BLOCK_KEY_NUM = (BLOCK_SIZE - INIT_SIZE) / sizeof(DataNode) - 1;
-		const static int BLOCK_PAIR_NUM = (BLOCK_SIZE - INIT_SIZE) / (KEY_SIZE + VALUE_SIZE) - 1;
 
 		class FileHead {
 		public:
@@ -262,19 +37,15 @@ namespace sjtu {
 			int data_block_rear = 0;
 			int _size = 0;
 		};
-
 		class NormalData {
 		public:
 			DataNode val[BLOCK_KEY_NUM];
 		};
-
 		class LeafData {
 		public:
 			pair<Key, Value> val[BLOCK_PAIR_NUM];
 		};
-
 		FileHead contentOfTree;
-
 		static FILE* pointerOfFile;
 
 		template <class MEM_TYPE>
@@ -684,6 +455,229 @@ namespace sjtu {
 			mem_read(buff, BLOCK_SIZE, 0);
 			memcpy(&contentOfTree, buff, sizeof(contentOfTree));
 		}
+	public:
+		typedef pair<const Key, Value> value_type;
+
+		class const_iterator;
+		class iterator {
+			friend class sjtu::BTree<Key, Value, Compare>::const_iterator;
+			friend iterator sjtu::BTree<Key, Value, Compare>::begin();
+			friend iterator sjtu::BTree<Key, Value, Compare>::end();
+			friend iterator sjtu::BTree<Key, Value, Compare>::find(const Key&);
+			friend pair<iterator, OperationResult> sjtu::BTree<Key, Value, Compare>::insert(const Key&, const Value&);
+		private:
+			BTree* cur_bptree = nullptr;
+			BlockHead block_info;
+			int cur_pos = 0;
+
+		public:
+			bool modify(const Value& value) {
+				BlockHead info;
+				LeafData leafData;
+				read_block(&info, &leafData, block_info._pos);
+				leafData.val[cur_pos].second = value;
+				write_block(&info, &leafData, block_info._pos);
+				return true;
+			}
+			iterator() {
+		
+			}
+			iterator(const iterator& other) {
+		
+				cur_bptree = other.cur_bptree;
+				block_info = other.block_info;
+				cur_pos = other.cur_pos;
+			}
+	
+			iterator operator++(int) {
+	
+				auto temp = *this;
+				++cur_pos;
+				if (cur_pos >= block_info._size) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._next);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return temp;
+			}
+			iterator& operator++() {
+			
+				++cur_pos;
+				if (cur_pos >= block_info._size) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._next);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return *this;
+			}
+			iterator operator--(int) {
+			
+				auto temp = *this;
+				if (cur_pos == 0) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._prev);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info._size - 1;
+				}
+				else
+					--cur_pos;
+				return temp;
+			}
+			iterator& operator--() {
+	
+				if (cur_pos == 0) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._prev);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info._size - 1;
+				}
+				else
+					--cur_pos;
+
+				return *this;
+			}
+	
+			value_type operator*() const {
+
+				if (cur_pos >= block_info._size)
+					throw invalid_iterator();
+				char buff[BLOCK_SIZE] = { 0 };
+				mem_read(buff, BLOCK_SIZE, block_info._pos);
+				LeafData leafData;
+				memcpy(&leafData, buff + INIT_SIZE, sizeof(leafData));
+				value_type result(leafData.val[cur_pos].first, leafData.val[cur_pos].second);
+				return result;
+			}
+			bool operator==(const iterator & rhs) const {
+
+				return cur_bptree == rhs.cur_bptree
+					&& block_info._pos == rhs.block_info._pos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator==(const const_iterator & rhs) const {
+	
+				return block_info._pos == rhs.block_info._pos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator!=(const iterator & rhs) const {
+
+				return cur_bptree != rhs.cur_bptree|| block_info._pos != rhs.block_info._pos|| cur_pos != rhs.cur_pos;
+			}
+			bool operator!=(const const_iterator & rhs) const {
+			
+				return block_info._pos != rhs.block_info._pos
+					|| cur_pos != rhs.cur_pos;
+			}
+		};
+		class const_iterator {
+		
+			friend class sjtu::BTree<Key, Value, Compare>::iterator;
+			friend const_iterator sjtu::BTree<Key, Value, Compare>::cbegin() const;
+			friend const_iterator sjtu::BTree<Key, Value, Compare>::cend() const;
+			friend const_iterator sjtu::BTree<Key, Value, Compare>::find(const Key&) const;
+		private:
+		
+			BlockHead block_info;
+			int cur_pos = 0;
+		public:
+			const_iterator() {
+			
+			}
+			const_iterator(const const_iterator& other) {
+		
+				block_info = other.block_info;
+				cur_pos = other.cur_pos;
+			}
+			const_iterator(const iterator& other) {
+			
+				block_info = other.block_info;
+				cur_pos = other.cur_pos;
+			}
+		
+			const_iterator operator++(int) {
+			
+				auto temp = *this;
+				++cur_pos;
+				if (cur_pos >= block_info._size) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._next);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return temp;
+			}
+			const_iterator& operator++() {
+		
+				++cur_pos;
+				if (cur_pos >= block_info._size) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._next);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = 0;
+				}
+				return *this;
+			}
+			const_iterator operator--(int) {
+			
+				auto temp = *this;
+				if (cur_pos == 0) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._prev);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info._size - 1;
+				}
+				else
+					--cur_pos;
+				return temp;
+			}
+			const_iterator& operator--() {
+	
+				if (cur_pos == 0) {
+					char buff[BLOCK_SIZE] = { 0 };
+					mem_read(buff, BLOCK_SIZE, block_info._prev);
+					memcpy(&block_info, buff, sizeof(block_info));
+					cur_pos = block_info._size - 1;
+				}
+				else
+					--cur_pos;
+
+				return *this;
+			}
+	
+			value_type operator*() const {
+		
+				if (cur_pos >= block_info._size)
+					throw invalid_iterator();
+				char buff[BLOCK_SIZE] = { 0 };
+				mem_read(buff, BLOCK_SIZE, block_info._pos);
+				LeafData leafData;
+				memcpy(&leafData, buff + INIT_SIZE, sizeof(leafData));
+				value_type result(leafData.val[cur_pos].first, leafData.val[cur_pos].second);
+				return result;
+			}
+			bool operator==(const iterator & rhs) const {
+	
+				return block_info._pos == rhs.block_info._pos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator==(const const_iterator & rhs) const {
+
+				return block_info._pos == rhs.block_info._pos
+					&& cur_pos == rhs.cur_pos;
+			}
+			bool operator!=(const iterator & rhs) const {
+
+				return block_info._pos != rhs.block_info._pos
+					|| cur_pos != rhs.cur_pos;
+			}
+			bool operator!=(const const_iterator & rhs) const {
+	
+				return block_info._pos != rhs.block_info._pos
+					|| cur_pos != rhs.cur_pos;
+			}
+		};
 		BTree() {
 			pointerOfFile = fopen(BPTREE_ADDRESS, "rb+");
 			if (!pointerOfFile) {
